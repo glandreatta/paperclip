@@ -30,6 +30,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "../lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -762,6 +763,26 @@ export function CompanySkills() {
   const { selectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const { pushToast } = useToastActions();
+  const TRANSLATION_MODELS = [
+    { id: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (grátis)" },
+    { id: "meta-llama/llama-3.1-8b-instruct:free", label: "Llama 3.1 8B (grátis)" },
+    { id: "mistralai/mistral-7b-instruct:free", label: "Mistral 7B (grátis)" },
+    { id: "google/gemini-flash-1.5", label: "Gemini Flash 1.5 (pago)" },
+    { id: "openai/gpt-4o-mini", label: "GPT-4o Mini (pago)" },
+    { id: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5 (pago)" },
+  ] as const;
+
+  const [translationModel, setTranslationModel] = useState<string>(
+    () => localStorage.getItem("paperclip:translation-model") ?? "google/gemini-2.0-flash-exp:free",
+  );
+  const [translateModelOpen, setTranslateModelOpen] = useState(false);
+
+  function selectTranslationModel(model: string) {
+    setTranslationModel(model);
+    localStorage.setItem("paperclip:translation-model", model);
+    setTranslateModelOpen(false);
+  }
+
   const [skillFilter, setSkillFilter] = useState("");
   const [source, setSource] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
@@ -899,7 +920,7 @@ export function CompanySkills() {
 
   const translateDescriptions = useMutation({
     mutationFn: (skillIds?: string[]) =>
-      companySkillsApi.translateDescriptions(selectedCompanyId!, skillIds),
+      companySkillsApi.translateDescriptions(selectedCompanyId!, skillIds, translationModel),
     onSuccess: (result) => {
       pushToast({
         tone: "success",
@@ -1279,19 +1300,57 @@ export function CompanySkills() {
                 >
                   <RefreshCw className={cn("h-4 w-4", scanProjects.isPending && "animate-spin")} />
                 </Button>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={translateDescriptions.isPending}
-                      onClick={() => translateDescriptions.mutate(undefined)}
-                    >
-                      <Languages className={cn("h-4 w-4", translateDescriptions.isPending && "animate-pulse")} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Traduzir todas as descrições para pt-BR</TooltipContent>
-                </Tooltip>
+                <Popover open={translateModelOpen} onOpenChange={setTranslateModelOpen}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={translateDescriptions.isPending}
+                        >
+                          <Languages className={cn("h-4 w-4", translateDescriptions.isPending && "animate-pulse")} />
+                        </Button>
+                      </PopoverTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent>Traduzir descrições para pt-BR</TooltipContent>
+                  </Tooltip>
+                  <PopoverContent className="w-64 p-3 space-y-3" align="end">
+                    <div>
+                      <p className="text-xs font-medium mb-1.5">Modelo de tradução</p>
+                      <div className="space-y-1">
+                        {TRANSLATION_MODELS.map((m) => (
+                          <button
+                            key={m.id}
+                            className={cn(
+                              "flex w-full items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-accent/50 text-left",
+                              translationModel === m.id && "bg-accent font-medium",
+                            )}
+                            onClick={() => selectTranslationModel(m.id)}
+                          >
+                            {m.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="border-t border-border pt-2">
+                      <p className="text-xs text-muted-foreground mb-2 truncate">
+                        {TRANSLATION_MODELS.find((m) => m.id === translationModel)?.label ?? translationModel}
+                      </p>
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        disabled={translateDescriptions.isPending}
+                        onClick={() => {
+                          setTranslateModelOpen(false);
+                          translateDescriptions.mutate(undefined);
+                        }}
+                      >
+                        {translateDescriptions.isPending ? "Traduzindo…" : "Traduzir todas"}
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <Button variant="ghost" size="icon-sm" onClick={() => setCatalogOpen(true)}>

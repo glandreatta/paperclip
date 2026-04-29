@@ -329,7 +329,8 @@ export function companySkillRoutes(db: Db) {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
     const skillIds = Array.isArray(req.body?.skillIds) ? (req.body.skillIds as string[]) : undefined;
-    const result = await svc.translateDescriptions(companyId, { skillIds });
+    const model = typeof req.body?.model === "string" ? req.body.model : undefined;
+    const result = await svc.translateDescriptions(companyId, { skillIds, model });
     res.json(result);
   });
 

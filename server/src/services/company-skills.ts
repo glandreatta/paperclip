@@ -2474,7 +2474,7 @@ export function companySkillService(db: Db) {
 
   async function translateDescriptions(
     companyId: string,
-    options: { skillIds?: string[] } = {},
+    options: { skillIds?: string[]; model?: string } = {},
   ): Promise<{ translated: number; skipped: number; errors: number }> {
     const openrouterKey = process.env.OPENROUTER_API_KEY;
     const openaiKey = process.env.OPENAI_API_KEY;
@@ -2507,7 +2507,7 @@ ${JSON.stringify(input)}`;
     async function callLLM(input: { id: string; description: string }[]): Promise<string> {
       if (openrouterKey) {
         // OpenRouter — OpenAI-compatible API; defaults to gemini-flash for cost efficiency
-        const model = process.env.TRANSLATION_MODEL ?? "google/gemini-flash-1.5";
+        const model = options.model ?? process.env.TRANSLATION_MODEL ?? "google/gemini-flash-1.5";
         const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
