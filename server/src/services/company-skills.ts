@@ -2520,7 +2520,10 @@ ${JSON.stringify(input)}`;
             messages: [{ role: "user", content: prompt(input) }],
           }),
         });
-        if (!resp.ok) throw new Error(`OpenRouter ${resp.status}`);
+        if (!resp.ok) {
+          const body = await resp.text().catch(() => "");
+          throw new Error(`OpenRouter ${resp.status}: ${body.slice(0, 200)}`);
+        }
         const data = (await resp.json()) as { choices: { message: { content: string } }[] };
         return data.choices[0]?.message?.content ?? "";
       } else if (openaiKey) {
@@ -2533,7 +2536,10 @@ ${JSON.stringify(input)}`;
             messages: [{ role: "user", content: prompt(input) }],
           }),
         });
-        if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
+        if (!resp.ok) {
+          const body = await resp.text().catch(() => "");
+          throw new Error(`OpenAI ${resp.status}: ${body.slice(0, 200)}`);
+        }
         const data = (await resp.json()) as { choices: { message: { content: string } }[] };
         return data.choices[0]?.message?.content ?? "";
       } else {
@@ -2550,20 +2556,27 @@ ${JSON.stringify(input)}`;
             messages: [{ role: "user", content: prompt(input) }],
           }),
         });
-        if (!resp.ok) throw new Error(`Anthropic ${resp.status}`);
+        if (!resp.ok) {
+          const body = await resp.text().catch(() => "");
+          throw new Error(`Anthropic ${resp.status}: ${body.slice(0, 200)}`);
+        }
         const data = (await resp.json()) as { content: { type: string; text: string }[] };
         return data.content.find((c) => c.type === "text")?.text ?? "";
       }
     }
 
-    const BATCH = 50;
+    const BATCH = 20;
     for (let i = 0; i < toTranslate.length; i += BATCH) {
       const batch = toTranslate.slice(i, i + BATCH);
       const input = batch.map((s) => ({ id: s.id, description: s.description! }));
       try {
         const text = await callLLM(input);
         const jsonMatch = text.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) { errors += batch.length; continue; }
+        if (!jsonMatch) {
+          console.error("[translate] LLM response has no JSON array. Response:", text.slice(0, 300));
+          errors += batch.length;
+          continue;
+        }
         const results = JSON.parse(jsonMatch[0]) as { id: string; translated: string }[];
         for (const r of results) {
           if (!r.id || !r.translated) continue;
@@ -2573,8 +2586,13 @@ ${JSON.stringify(input)}`;
             .where(and(eq(companySkills.companyId, companyId), eq(companySkills.id, r.id)));
           translated++;
         }
-      } catch {
+      } catch (err) {
+        console.error("[translate] Batch failed:", err instanceof Error ? err.message : String(err));
         errors += batch.length;
+      }
+      // Small delay to respect API rate limits
+      if (i + BATCH < toTranslate.length) {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
     }
 
