@@ -2566,12 +2566,30 @@ ${JSON.stringify(input)}`;
     }
 
     const BATCH = 20;
+    // Free models on OpenRouter allow ~16 req/min; 4s delay keeps us safely under
+    const DELAY_MS = 4000;
     const firstError: string[] = [];
+
+    async function callLLMWithRetry(input: { id: string; description: string }[]): Promise<string> {
+      try {
+        return await callLLM(input);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // Retry once after 8s on rate limit (429)
+        if (msg.includes("429")) {
+          console.log("[translate] Rate limited, waiting 8s before retry...");
+          await new Promise((resolve) => setTimeout(resolve, 8000));
+          return await callLLM(input);
+        }
+        throw err;
+      }
+    }
+
     for (let i = 0; i < toTranslate.length; i += BATCH) {
       const batch = toTranslate.slice(i, i + BATCH);
       const input = batch.map((s) => ({ id: s.id, description: s.description! }));
       try {
-        const text = await callLLM(input);
+        const text = await callLLMWithRetry(input);
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         if (!jsonMatch) {
           const msg = `[translate] No JSON array in LLM response: ${text.slice(0, 200)}`;
@@ -2595,9 +2613,8 @@ ${JSON.stringify(input)}`;
         if (firstError.length < 3) firstError.push(msg);
         errors += batch.length;
       }
-      // Small delay to respect API rate limits
       if (i + BATCH < toTranslate.length) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
       }
     }
 
