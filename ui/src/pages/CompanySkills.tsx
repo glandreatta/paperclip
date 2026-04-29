@@ -764,15 +764,16 @@ export function CompanySkills() {
   const { setBreadcrumbs } = useBreadcrumbs();
   const { pushToast } = useToastActions();
   const TRANSLATION_MODELS = [
-    { id: "google/gemma-3-27b-it:free", label: "Gemma 3 27B (grátis)" },
     { id: "google/gemma-4-31b-it:free", label: "Gemma 4 31B (grátis)" },
     { id: "google/gemma-4-26b-a4b-it:free", label: "Gemma 4 26B (grátis)" },
-    { id: "google/gemini-flash-1.5", label: "Gemini Flash 1.5 (pago)" },
+    { id: "deepseek/deepseek-v3.2", label: "DeepSeek V3.2 (pago)" },
+    { id: "deepseek/deepseek-v4-flash", label: "DeepSeek V4 Flash (pago)" },
+    { id: "stepfun/step-3.5-flash", label: "StepFun 3.5 Flash (pago)" },
     { id: "openai/gpt-4o-mini", label: "GPT-4o Mini (pago)" },
-    { id: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5 (pago)" },
+    { id: "x-ai/grok-4.1-fast", label: "Grok 4.1 Fast (pago)" },
   ] as const;
 
-  const DEFAULT_TRANSLATION_MODEL = "google/gemma-4-31b-it:free";
+  const DEFAULT_TRANSLATION_MODEL = "deepseek/deepseek-v3.2";
 
   const [translationModel, setTranslationModel] = useState<string>(() => {
     const stored = localStorage.getItem("paperclip:translation-model");
