@@ -2516,7 +2516,7 @@ ${JSON.stringify(input)}`;
           },
           body: JSON.stringify({
             model,
-            max_tokens: 4096,
+            max_tokens: 2048,
             messages: [{ role: "user", content: prompt(input) }],
           }),
         });
@@ -2532,7 +2532,7 @@ ${JSON.stringify(input)}`;
           headers: { Authorization: `Bearer ${openaiKey}`, "content-type": "application/json" },
           body: JSON.stringify({
             model: "gpt-4o-mini",
-            max_tokens: 4096,
+            max_tokens: 2048,
             messages: [{ role: "user", content: prompt(input) }],
           }),
         });
@@ -2552,7 +2552,7 @@ ${JSON.stringify(input)}`;
           },
           body: JSON.stringify({
             model: "claude-haiku-4-5-20251001",
-            max_tokens: 4096,
+            max_tokens: 2048,
             messages: [{ role: "user", content: prompt(input) }],
           }),
         });
@@ -2565,7 +2565,7 @@ ${JSON.stringify(input)}`;
       }
     }
 
-    const BATCH = 20;
+    const BATCH = 10;
     // Free models on OpenRouter allow ~16 req/min; 4s delay keeps us safely under
     const DELAY_MS = 4000;
     const firstError: string[] = [];
@@ -2589,7 +2589,9 @@ ${JSON.stringify(input)}`;
       const batch = toTranslate.slice(i, i + BATCH);
       const input = batch.map((s) => ({ id: s.id, description: s.description! }));
       try {
-        const text = await callLLMWithRetry(input);
+        const raw = await callLLMWithRetry(input);
+        // Strip markdown code fences if model wraps response in ```json ... ```
+        const text = raw.replace(/^```(?:json)?\s*/m, "").replace(/\s*```\s*$/m, "");
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         if (!jsonMatch) {
           const msg = `[translate] No JSON array in LLM response: ${text.slice(0, 200)}`;
