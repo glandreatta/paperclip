@@ -3,6 +3,7 @@ import { Link, NavLink, useLocation } from "@/lib/router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronRight,
+  LayoutTemplate,
   MoreHorizontal,
   PauseCircle,
   Pencil,
@@ -281,6 +282,21 @@ export function SidebarAgents() {
 
       <CollapsibleContent>
         <div className="flex flex-col gap-0.5 mt-0.5">
+          <NavLink
+            to="/agents/new"
+            className={({ isActive }) =>
+              cn(
+                "flex items-center gap-2 px-3 py-1 text-xs rounded-sm transition-colors",
+                isActive
+                  ? "bg-accent text-foreground font-medium"
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+              )
+            }
+            onClick={() => { if (isMobile) setSidebarOpen(false); }}
+          >
+            <LayoutTemplate className="h-3 w-3 shrink-0" />
+            Templates
+          </NavLink>
           {orderedAgents.map((agent: Agent) => {
             const runCount = liveCountByAgent.get(agent.id) ?? 0;
             return (
