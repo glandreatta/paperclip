@@ -764,7 +764,6 @@ export function CompanySkills() {
   const { setBreadcrumbs } = useBreadcrumbs();
   const { pushToast } = useToastActions();
   const TRANSLATION_MODELS = [
-    { id: "google/gemini-2.0-flash-exp:free", label: "Gemini 2.0 Flash (grátis)" },
     { id: "meta-llama/llama-3.1-8b-instruct:free", label: "Llama 3.1 8B (grátis)" },
     { id: "mistralai/mistral-7b-instruct:free", label: "Mistral 7B (grátis)" },
     { id: "google/gemini-flash-1.5", label: "Gemini Flash 1.5 (pago)" },
@@ -772,9 +771,14 @@ export function CompanySkills() {
     { id: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5 (pago)" },
   ] as const;
 
-  const [translationModel, setTranslationModel] = useState<string>(
-    () => localStorage.getItem("paperclip:translation-model") ?? "google/gemini-2.0-flash-exp:free",
-  );
+  const DEFAULT_TRANSLATION_MODEL = "meta-llama/llama-3.1-8b-instruct:free";
+
+  const [translationModel, setTranslationModel] = useState<string>(() => {
+    const stored = localStorage.getItem("paperclip:translation-model");
+    // Reset discontinued model to current default
+    if (!stored || stored === "google/gemini-2.0-flash-exp:free") return DEFAULT_TRANSLATION_MODEL;
+    return stored;
+  });
   const [translateModelOpen, setTranslateModelOpen] = useState(false);
 
   function selectTranslationModel(model: string) {
