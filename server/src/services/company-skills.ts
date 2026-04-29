@@ -2475,7 +2475,7 @@ export function companySkillService(db: Db) {
   async function translateDescriptions(
     companyId: string,
     options: { skillIds?: string[]; model?: string } = {},
-  ): Promise<{ translated: number; skipped: number; errors: number }> {
+  ): Promise<{ translated: number; skipped: number; errors: number; firstError: string[] }> {
     const openrouterKey = process.env.OPENROUTER_API_KEY;
     const openaiKey = process.env.OPENAI_API_KEY;
     const anthropicKey = process.env.ANTHROPIC_API_KEY;
@@ -2566,6 +2566,7 @@ ${JSON.stringify(input)}`;
     }
 
     const BATCH = 20;
+    const firstError: string[] = [];
     for (let i = 0; i < toTranslate.length; i += BATCH) {
       const batch = toTranslate.slice(i, i + BATCH);
       const input = batch.map((s) => ({ id: s.id, description: s.description! }));
@@ -2573,7 +2574,9 @@ ${JSON.stringify(input)}`;
         const text = await callLLM(input);
         const jsonMatch = text.match(/\[[\s\S]*\]/);
         if (!jsonMatch) {
-          console.error("[translate] LLM response has no JSON array. Response:", text.slice(0, 300));
+          const msg = `[translate] No JSON array in LLM response: ${text.slice(0, 200)}`;
+          console.log(msg);
+          if (firstError.length < 3) firstError.push(msg);
           errors += batch.length;
           continue;
         }
@@ -2587,7 +2590,9 @@ ${JSON.stringify(input)}`;
           translated++;
         }
       } catch (err) {
-        console.error("[translate] Batch failed:", err instanceof Error ? err.message : String(err));
+        const msg = `[translate] Batch ${i}-${i + batch.length} failed: ${err instanceof Error ? err.message : String(err)}`;
+        console.log(msg);
+        if (firstError.length < 3) firstError.push(msg);
         errors += batch.length;
       }
       // Small delay to respect API rate limits
@@ -2596,7 +2601,7 @@ ${JSON.stringify(input)}`;
       }
     }
 
-    return { translated, skipped, errors };
+    return { translated, skipped, errors, firstError };
   }
 
   return {
