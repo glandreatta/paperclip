@@ -330,8 +330,16 @@ export function companySkillRoutes(db: Db) {
     assertCompanyAccess(req, companyId);
     const skillIds = Array.isArray(req.body?.skillIds) ? (req.body.skillIds as string[]) : undefined;
     const model = typeof req.body?.model === "string" ? req.body.model : undefined;
-    const result = await svc.translateDescriptions(companyId, { skillIds, model });
-    res.json(result);
+    // Fire and forget — can take many minutes for large skill sets; respond immediately
+    svc.translateDescriptions(companyId, { skillIds, model }).then((result) => {
+      console.log(`[translate] Done: ${result.translated} traduzidas, ${result.skipped} já em pt-BR, ${result.errors} erros`);
+      if (result.firstError.length > 0) {
+        console.log(`[translate] Erros de amostra: ${result.firstError.join(" | ")}`);
+      }
+    }).catch((err) => {
+      console.log(`[translate] Falhou: ${err instanceof Error ? err.message : String(err)}`);
+    });
+    res.json({ status: "started" });
   });
 
   return router;

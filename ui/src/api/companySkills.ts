@@ -59,7 +59,7 @@ export const companySkillsApi = {
   catalog: (companyId: string) =>
     api.get<SkillCatalogSource[]>(`/companies/${encodeURIComponent(companyId)}/skills-catalog`),
   translateDescriptions: (companyId: string, skillIds?: string[], model?: string) =>
-    api.post<{ translated: number; skipped: number; errors: number }>(
+    api.post<{ status: string }>(
       `/companies/${encodeURIComponent(companyId)}/skills/translate-descriptions`,
       { ...(skillIds ? { skillIds } : {}), ...(model ? { model } : {}) },
     ),

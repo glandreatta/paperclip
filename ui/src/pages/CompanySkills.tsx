@@ -927,11 +927,11 @@ export function CompanySkills() {
   const translateDescriptions = useMutation({
     mutationFn: (skillIds?: string[]) =>
       companySkillsApi.translateDescriptions(selectedCompanyId!, skillIds, translationModel),
-    onSuccess: (result) => {
+    onSuccess: () => {
       pushToast({
         tone: "success",
-        title: "Tradução concluída",
-        body: `${result.translated} traduzidas, ${result.skipped} já em pt-BR, ${result.errors} erros.`,
+        title: "Tradução iniciada",
+        body: "Rodando em background. O resultado aparece nos logs do servidor.",
       });
     },
     onError: (error) => {

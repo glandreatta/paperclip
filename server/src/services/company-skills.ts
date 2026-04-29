@@ -2585,8 +2585,15 @@ ${JSON.stringify(input)}`;
       }
     }
 
+    const totalBatches = Math.ceil(toTranslate.length / BATCH);
+    console.log(`[translate] Iniciando: ${toTranslate.length} skills em ${totalBatches} batches`);
+
     for (let i = 0; i < toTranslate.length; i += BATCH) {
       const batch = toTranslate.slice(i, i + BATCH);
+      const batchNum = Math.floor(i / BATCH) + 1;
+      if (batchNum === 1 || batchNum % 10 === 0) {
+        console.log(`[translate] Batch ${batchNum}/${totalBatches}`);
+      }
       const input = batch.map((s) => ({ id: s.id, description: s.description! }));
       try {
         const raw = await callLLMWithRetry(input);
