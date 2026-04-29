@@ -2507,7 +2507,7 @@ ${JSON.stringify(input)}`;
     async function callLLM(input: { id: string; description: string }[]): Promise<string> {
       if (openrouterKey) {
         // OpenRouter — OpenAI-compatible API; defaults to gemini-flash for cost efficiency
-        const model = options.model ?? process.env.TRANSLATION_MODEL ?? "meta-llama/llama-3.1-8b-instruct:free";
+        const model = options.model ?? process.env.TRANSLATION_MODEL ?? "google/gemma-4-31b-it:free";
         const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {

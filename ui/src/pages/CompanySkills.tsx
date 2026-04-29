@@ -764,19 +764,20 @@ export function CompanySkills() {
   const { setBreadcrumbs } = useBreadcrumbs();
   const { pushToast } = useToastActions();
   const TRANSLATION_MODELS = [
-    { id: "meta-llama/llama-3.1-8b-instruct:free", label: "Llama 3.1 8B (grátis)" },
-    { id: "mistralai/mistral-7b-instruct:free", label: "Mistral 7B (grátis)" },
+    { id: "google/gemma-3-27b-it:free", label: "Gemma 3 27B (grátis)" },
+    { id: "google/gemma-4-31b-it:free", label: "Gemma 4 31B (grátis)" },
+    { id: "google/gemma-4-26b-a4b-it:free", label: "Gemma 4 26B (grátis)" },
     { id: "google/gemini-flash-1.5", label: "Gemini Flash 1.5 (pago)" },
     { id: "openai/gpt-4o-mini", label: "GPT-4o Mini (pago)" },
     { id: "anthropic/claude-haiku-4-5", label: "Claude Haiku 4.5 (pago)" },
   ] as const;
 
-  const DEFAULT_TRANSLATION_MODEL = "meta-llama/llama-3.1-8b-instruct:free";
+  const DEFAULT_TRANSLATION_MODEL = "google/gemma-4-31b-it:free";
 
   const [translationModel, setTranslationModel] = useState<string>(() => {
     const stored = localStorage.getItem("paperclip:translation-model");
-    // Reset discontinued model to current default
-    if (!stored || stored === "google/gemini-2.0-flash-exp:free") return DEFAULT_TRANSLATION_MODEL;
+    const valid = (TRANSLATION_MODELS as readonly { id: string }[]).some((m) => m.id === stored);
+    if (!stored || !valid) return DEFAULT_TRANSLATION_MODEL;
     return stored;
   });
   const [translateModelOpen, setTranslateModelOpen] = useState(false);
