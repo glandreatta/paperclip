@@ -6,6 +6,7 @@ import { Link } from "@/lib/router";
 import { heartbeatsApi } from "../api/heartbeats";
 import { agentsApi } from "../api/agents";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
+import { useConfirm } from "../context/ConfirmContext";
 import { EmptyState } from "../components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ function buildAgentHref(agent: InstanceSchedulerHeartbeatAgent) {
 export function InstanceSettings() {
   const { setBreadcrumbs } = useBreadcrumbs();
   const queryClient = useQueryClient();
+  const confirm = useConfirm();
   const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -185,11 +187,15 @@ export function InstanceSettings() {
             size="sm"
             className="ml-auto h-7 text-xs"
             disabled={disableAllMutation.isPending}
-            onClick={() => {
+            onClick={async () => {
               const noun = enabledCount === 1 ? "agent" : "agents";
-              if (!window.confirm(`Disable timer heartbeats for all ${enabledCount} enabled ${noun}?`)) {
-                return;
-              }
+              const ok = await confirm({
+                title: `Disable timer heartbeats?`,
+                description: `This will disable all ${enabledCount} enabled ${noun}.`,
+                confirmLabel: "Disable All",
+                variant: "destructive",
+              });
+              if (!ok) return;
               disableAllMutation.mutate(agents);
             }}
           >

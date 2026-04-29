@@ -88,6 +88,13 @@ export function companySkillRoutes(db: Db) {
     res.json(result);
   });
 
+  router.get("/companies/:companyId/skills-catalog", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+    const result = await svc.listCatalogSources(companyId);
+    res.json(result);
+  });
+
   router.get("/companies/:companyId/skills/:skillId", async (req, res) => {
     const companyId = req.params.companyId as string;
     const skillId = req.params.skillId as string;
@@ -315,6 +322,14 @@ export function companySkillRoutes(db: Db) {
       },
     });
 
+    res.json(result);
+  });
+
+  router.post("/companies/:companyId/skills/translate-descriptions", async (req, res) => {
+    const companyId = req.params.companyId as string;
+    assertCompanyAccess(req, companyId);
+    const skillIds = Array.isArray(req.body?.skillIds) ? (req.body.skillIds as string[]) : undefined;
+    const result = await svc.translateDescriptions(companyId, { skillIds });
     res.json(result);
   });
 

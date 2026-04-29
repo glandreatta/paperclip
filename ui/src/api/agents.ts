@@ -12,6 +12,7 @@ import type {
   HeartbeatRun,
   Approval,
   AgentConfigRevision,
+  AgentTemplate,
 } from "@paperclipai/shared";
 import { isUuidLike, normalizeAgentUrlKey } from "@paperclipai/shared";
 import { ApiError, api } from "./client";
@@ -74,6 +75,7 @@ function agentPath(id: string, companyId?: string, suffix = "") {
 
 export const agentsApi = {
   list: (companyId: string) => api.get<Agent[]>(`/companies/${companyId}/agents`),
+  templates: (companyId: string) => api.get<AgentTemplate[]>(`/companies/${companyId}/agent-templates`),
   org: (companyId: string) => api.get<OrgNode[]>(`/companies/${companyId}/org`),
   listConfigurations: (companyId: string) =>
     api.get<Record<string, unknown>[]>(`/companies/${companyId}/agent-configurations`),

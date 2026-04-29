@@ -20,6 +20,7 @@ import { useSidebar } from "../context/SidebarContext";
 import { useCompany } from "../context/CompanyContext";
 import { useToastActions } from "../context/ToastContext";
 import { useDialogActions } from "../context/DialogContext";
+import { useConfirm } from "../context/ConfirmContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { queryKeys } from "../lib/queryKeys";
 import { AgentConfigForm } from "../components/AgentConfigForm";
@@ -628,6 +629,7 @@ export function AgentDetail() {
   const { closePanel } = usePanel();
   const { openNewIssue } = useDialogActions();
   const { setBreadcrumbs } = useBreadcrumbs();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -1691,6 +1693,7 @@ function PromptsTab({
   const queryClient = useQueryClient();
   const { selectedCompanyId } = useCompany();
   const { isMobile } = useSidebar();
+  const confirm = useConfirm();
   const [selectedFile, setSelectedFile] = useState<string>("AGENTS.md");
   const [showFilePanel, setShowFilePanel] = useState(false);
   const [draft, setDraft] = useState<string | null>(null);
@@ -2363,8 +2366,13 @@ function PromptsTab({
                   type="button"
                   size="sm"
                   variant="outline"
-                  onClick={() => {
-                    if (confirm(`Delete ${selectedOrEntryFile}?`)) {
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: `Delete ${selectedOrEntryFile}?`,
+                      confirmLabel: "Delete",
+                      variant: "destructive",
+                    });
+                    if (ok) {
                       deleteFile.mutate(selectedOrEntryFile, {
                         onSuccess: () => {
                           setSelectedFile(currentEntryFile);
@@ -3013,6 +3021,7 @@ function RunsTab({
 function RunDetail({ run: initialRun, agentRouteId, adapterType, adapterConfig }: { run: HeartbeatRun; agentRouteId: string; adapterType: string; adapterConfig: Record<string, unknown> }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { data: hydratedRun } = useQuery({
     queryKey: queryKeys.runDetail(initialRun.id),
     queryFn: () => heartbeatsApi.get(initialRun.id),
@@ -3393,12 +3402,15 @@ function RunDetail({ run: initialRun, agentRouteId, adapterType, adapterConfig }
                       type="button"
                       className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground disabled:opacity-60"
                       disabled={clearSessionsForTouchedIssues.isPending}
-                      onClick={() => {
+                      onClick={async () => {
                         const issueCount = touchedIssueIds.length;
-                        const confirmed = window.confirm(
-                          `Clear session for ${issueCount} issue${issueCount === 1 ? "" : "s"} touched by this run?`,
-                        );
-                        if (!confirmed) return;
+                        const ok = await confirm({
+                          title: `Clear session for ${issueCount} issue${issueCount === 1 ? "" : "s"}?`,
+                          description: "Sessions for all issues touched by this run will be cleared.",
+                          confirmLabel: "Clear",
+                          variant: "destructive",
+                        });
+                        if (!ok) return;
                         clearSessionsForTouchedIssues.mutate();
                       }}
                     >

@@ -5,6 +5,7 @@ import { approvalsApi } from "../api/approvals";
 import { agentsApi } from "../api/agents";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
+import { useConfirm } from "../context/ConfirmContext";
 import { queryKeys } from "../lib/queryKeys";
 import { StatusBadge } from "../components/StatusBadge";
 import { Identity } from "../components/Identity";
@@ -20,6 +21,7 @@ export function ApprovalDetail() {
   const { approvalId } = useParams<{ approvalId: string }>();
   const { selectedCompanyId, setSelectedCompanyId } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
+  const confirm = useConfirm();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -311,8 +313,14 @@ export function ApprovalDetail() {
               size="sm"
               variant="outline"
               className="text-destructive border-destructive/40"
-              onClick={() => {
-                if (!window.confirm("Delete this disapproved agent? This cannot be undone.")) return;
+              onClick={async () => {
+                const ok = await confirm({
+                  title: "Delete disapproved agent?",
+                  description: "This cannot be undone.",
+                  confirmLabel: "Delete",
+                  variant: "destructive",
+                });
+                if (!ok) return;
                 deleteAgentMutation.mutate(linkedAgentId);
               }}
               disabled={deleteAgentMutation.isPending}

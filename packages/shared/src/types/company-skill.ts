@@ -155,3 +155,15 @@ export interface CompanySkillFileUpdateRequest {
   path: string;
   content: string;
 }
+
+export interface SkillCatalogSource {
+  id: string;
+  name: string;
+  description: string;
+  author: string;
+  source: string;
+  skillCount: number;
+  tags: string[];
+  stars: number;
+  installedCount: number;
+}

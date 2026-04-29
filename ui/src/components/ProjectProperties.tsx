@@ -10,6 +10,7 @@ import { instanceSettingsApi } from "../api/instanceSettings";
 import { projectsApi } from "../api/projects";
 import { secretsApi } from "../api/secrets";
 import { useCompany } from "../context/CompanyContext";
+import { useConfirm } from "../context/ConfirmContext";
 import { queryKeys } from "../lib/queryKeys";
 import { statusBadge, statusBadgeDefault } from "../lib/status-colors";
 import { Separator } from "@/components/ui/separator";
@@ -223,6 +224,7 @@ function ArchiveDangerZone({
 
 export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSaveState, onArchive, archivePending }: ProjectPropertiesProps) {
   const { selectedCompanyId } = useCompany();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [goalOpen, setGoalOpen] = useState(false);
   const [executionWorkspaceAdvancedOpen, setExecutionWorkspaceAdvancedOpen] = useState(false);
@@ -474,24 +476,25 @@ export function ProjectProperties({ project, onUpdate, onFieldUpdate, getFieldSa
     persistCodebase({ repoUrl });
   };
 
-  const clearLocalWorkspace = () => {
-    const confirmed = window.confirm(
-      codebase.repoUrl
-        ? "Clear local folder from this workspace?"
-        : "Delete this workspace local folder?",
-    );
-    if (!confirmed) return;
+  const clearLocalWorkspace = async () => {
+    const ok = await confirm({
+      title: codebase.repoUrl ? "Clear local folder?" : "Delete workspace local folder?",
+      description: codebase.repoUrl ? "The local folder will be removed from this workspace." : undefined,
+      confirmLabel: "Clear",
+      variant: "destructive",
+    });
+    if (!ok) return;
     persistCodebase({ cwd: null });
   };
 
-  const clearRepoWorkspace = () => {
+  const clearRepoWorkspace = async () => {
     const hasLocalFolder = Boolean(codebase.localFolder);
-    const confirmed = window.confirm(
-      hasLocalFolder
-        ? "Clear repo from this workspace?"
-        : "Delete this workspace repo?",
-    );
-    if (!confirmed) return;
+    const ok = await confirm({
+      title: hasLocalFolder ? "Clear repo from workspace?" : "Delete workspace repo?",
+      confirmLabel: "Clear",
+      variant: "destructive",
+    });
+    if (!ok) return;
     if (primaryCodebaseWorkspace && hasLocalFolder) {
       updateWorkspace.mutate({
         workspaceId: primaryCodebaseWorkspace.id,

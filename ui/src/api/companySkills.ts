@@ -8,6 +8,7 @@ import type {
   CompanySkillProjectScanRequest,
   CompanySkillProjectScanResult,
   CompanySkillUpdateStatus,
+  SkillCatalogSource,
 } from "@paperclipai/shared";
 import { api } from "./client";
 
@@ -54,5 +55,12 @@ export const companySkillsApi = {
   delete: (companyId: string, skillId: string) =>
     api.delete<CompanySkill>(
       `/companies/${encodeURIComponent(companyId)}/skills/${encodeURIComponent(skillId)}`,
+    ),
+  catalog: (companyId: string) =>
+    api.get<SkillCatalogSource[]>(`/companies/${encodeURIComponent(companyId)}/skills-catalog`),
+  translateDescriptions: (companyId: string, skillIds?: string[]) =>
+    api.post<{ translated: number; skipped: number; errors: number }>(
+      `/companies/${encodeURIComponent(companyId)}/skills/translate-descriptions`,
+      skillIds ? { skillIds } : {},
     ),
 };

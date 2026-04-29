@@ -22,6 +22,7 @@ import { MarkdownEditor } from "../components/MarkdownEditor";
 import { PageSkeleton } from "../components/PageSkeleton";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -44,6 +45,7 @@ import {
   Folder,
   FolderOpen,
   Github,
+  Languages,
   Link2,
   ExternalLink,
   Paperclip,
@@ -764,6 +766,7 @@ export function CompanySkills() {
   const [source, setSource] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [emptySourceHelpOpen, setEmptySourceHelpOpen] = useState(false);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   const [expandedSkillId, setExpandedSkillId] = useState<string | null>(null);
   const [expandedDirs, setExpandedDirs] = useState<Record<string, Set<string>>>({});
   const [viewMode, setViewMode] = useState<"preview" | "code">("preview");
@@ -886,6 +889,33 @@ export function CompanySkills() {
     }
   }
 
+  const catalogQuery = useQuery({
+    queryKey: ["company-skills-catalog", selectedCompanyId],
+    queryFn: () => companySkillsApi.catalog(selectedCompanyId!),
+    enabled: Boolean(selectedCompanyId) && catalogOpen,
+  });
+
+  const [translateAfterImport, setTranslateAfterImport] = useState(true);
+
+  const translateDescriptions = useMutation({
+    mutationFn: (skillIds?: string[]) =>
+      companySkillsApi.translateDescriptions(selectedCompanyId!, skillIds),
+    onSuccess: (result) => {
+      pushToast({
+        tone: "success",
+        title: "Tradução concluída",
+        body: `${result.translated} traduzidas, ${result.skipped} já em pt-BR, ${result.errors} erros.`,
+      });
+    },
+    onError: (error) => {
+      pushToast({
+        tone: "error",
+        title: "Falha na tradução",
+        body: error instanceof Error ? error.message : "Erro ao traduzir descrições.",
+      });
+    },
+  });
+
   const importSkill = useMutation({
     mutationFn: (importSource: string) => companySkillsApi.importFromSource(selectedCompanyId!, importSource),
     onSuccess: async (result) => {
@@ -898,6 +928,9 @@ export function CompanySkills() {
       });
       if (result.warnings[0]) {
         pushToast({ tone: "warn", title: "Import warnings", body: result.warnings[0] });
+      }
+      if (translateAfterImport && result.imported.length > 0) {
+        translateDescriptions.mutate(result.imported.map((s) => s.id));
       }
       setSource("");
     },
@@ -1078,6 +1111,64 @@ export function CompanySkills() {
 
   return (
     <>
+      <Dialog open={catalogOpen} onOpenChange={setCatalogOpen}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Catálogo de Skills</DialogTitle>
+            <DialogDescription>
+              Instale coleções de skills de fontes confiáveis. Um clique importa todas as skills da coleção para esta empresa.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+            {catalogQuery.isLoading && (
+              <p className="text-sm text-muted-foreground py-4 text-center">Carregando catálogo...</p>
+            )}
+            {catalogQuery.data?.map((entry) => (
+              <div key={entry.id} className="flex items-start justify-between gap-4 rounded-md border border-border px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-sm">{entry.name}</span>
+                    <span className="text-xs text-muted-foreground">por {entry.author}</span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground leading-snug">{entry.description}</p>
+                  <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
+                    <span>{entry.skillCount} skills</span>
+                    {entry.installedCount > 0 && (
+                      <span className="text-green-600 dark:text-green-400">{entry.installedCount} instaladas</span>
+                    )}
+                  </div>
+                </div>
+                <Button
+                  size="sm"
+                  variant={entry.installedCount > 0 ? "outline" : "default"}
+                  disabled={importSkill.isPending}
+                  onClick={() => {
+                    setCatalogOpen(false);
+                    importSkill.mutate(entry.source);
+                  }}
+                >
+                  {entry.installedCount > 0 ? "Atualizar" : "Instalar"}
+                </Button>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer mr-auto">
+              <input
+                type="checkbox"
+                checked={translateAfterImport}
+                onChange={(e) => setTranslateAfterImport(e.target.checked)}
+                className="h-3.5 w-3.5"
+              />
+              Traduzir descrições para pt-BR após importar
+            </label>
+            <DialogClose asChild>
+              <Button variant="outline" size="sm">Fechar</Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={deleteOpen} onOpenChange={closeDeleteDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1188,6 +1279,27 @@ export function CompanySkills() {
                 >
                   <RefreshCw className={cn("h-4 w-4", scanProjects.isPending && "animate-spin")} />
                 </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={translateDescriptions.isPending}
+                      onClick={() => translateDescriptions.mutate(undefined)}
+                    >
+                      <Languages className={cn("h-4 w-4", translateDescriptions.isPending && "animate-pulse")} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Traduzir todas as descrições para pt-BR</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon-sm" onClick={() => setCatalogOpen(true)}>
+                      <Boxes className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Catálogo de skills</TooltipContent>
+                </Tooltip>
                 <Button variant="ghost" size="icon-sm" onClick={() => setCreateOpen((value) => !value)}>
                   <Plus className="h-4 w-4" />
                 </Button>

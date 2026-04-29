@@ -30,6 +30,7 @@ import { normalizeAgentUrlKey } from "@paperclipai/shared";
 import { resolvePaperclipInstanceRoot } from "../home-paths.js";
 import { notFound, unprocessable } from "../errors.js";
 import { ghFetch, gitHubApiBase, resolveRawGitHubUrl } from "./github-fetch.js";
+import { SKILL_CATALOG, type SkillCatalogEntry } from "../presets/skill-catalog.js";
 import { agentService } from "./agents.js";
 import { projectService } from "./projects.js";
 
@@ -1091,59 +1092,66 @@ async function readUrlSkillImports(
         "No SKILL.md files were found in the provided GitHub source.",
       );
     }
+    const FETCH_BATCH_SIZE = 25;
     const skills: ImportedSkill[] = [];
-    for (const relativeSkillPath of skillPaths) {
-      const repoSkillPath = basePrefix ? `${basePrefix}${relativeSkillPath}` : relativeSkillPath;
-      const markdown = await fetchText(resolveRawGitHubUrl(parsed.hostname, parsed.owner, parsed.repo, ref, repoSkillPath));
-      const parsedMarkdown = parseFrontmatterMarkdown(markdown);
-      const skillDir = path.posix.dirname(relativeSkillPath);
-      const slug = deriveImportedSkillSlug(parsedMarkdown.frontmatter, path.posix.basename(skillDir));
-      const skillKey = readCanonicalSkillKey(
-        parsedMarkdown.frontmatter,
-        isPlainRecord(parsedMarkdown.frontmatter.metadata) ? parsedMarkdown.frontmatter.metadata : null,
-      );
-      if (requestedSkillSlug && !matchesRequestedSkill(relativeSkillPath, requestedSkillSlug) && slug !== requestedSkillSlug) {
-        continue;
-      }
-      const metadata = {
-        ...(skillKey ? { skillKey } : {}),
-        sourceKind: "github",
-        ...(parsed.hostname !== "github.com" ? { hostname: parsed.hostname } : {}),
-        owner: parsed.owner,
-        repo: parsed.repo,
-        ref,
-        trackingRef,
-        repoSkillDir: normalizeGitHubSkillDirectory(
-          basePrefix ? `${basePrefix}${skillDir}` : skillDir,
+    for (let batchStart = 0; batchStart < skillPaths.length; batchStart += FETCH_BATCH_SIZE) {
+      const batch = skillPaths.slice(batchStart, batchStart + FETCH_BATCH_SIZE);
+      const batchResults = await Promise.all(batch.map(async (relativeSkillPath) => {
+        const repoSkillPath = basePrefix ? `${basePrefix}${relativeSkillPath}` : relativeSkillPath;
+        const markdown = await fetchText(resolveRawGitHubUrl(parsed.hostname, parsed.owner, parsed.repo, ref, repoSkillPath));
+        const parsedMarkdown = parseFrontmatterMarkdown(markdown);
+        const skillDir = path.posix.dirname(relativeSkillPath);
+        const slug = deriveImportedSkillSlug(parsedMarkdown.frontmatter, path.posix.basename(skillDir));
+        const skillKey = readCanonicalSkillKey(
+          parsedMarkdown.frontmatter,
+          isPlainRecord(parsedMarkdown.frontmatter.metadata) ? parsedMarkdown.frontmatter.metadata : null,
+        );
+        if (requestedSkillSlug && !matchesRequestedSkill(relativeSkillPath, requestedSkillSlug) && slug !== requestedSkillSlug) {
+          return null;
+        }
+        const metadata = {
+          ...(skillKey ? { skillKey } : {}),
+          sourceKind: "github",
+          ...(parsed.hostname !== "github.com" ? { hostname: parsed.hostname } : {}),
+          owner: parsed.owner,
+          repo: parsed.repo,
+          ref,
+          trackingRef,
+          repoSkillDir: normalizeGitHubSkillDirectory(
+            basePrefix ? `${basePrefix}${skillDir}` : skillDir,
+            slug,
+          ),
+        };
+        const inventory = filteredPaths
+          .filter((entry) => entry === relativeSkillPath || entry.startsWith(`${skillDir}/`))
+          .map((entry) => ({
+            path: entry === relativeSkillPath ? "SKILL.md" : entry.slice(skillDir.length + 1),
+            kind: classifyInventoryKind(entry === relativeSkillPath ? "SKILL.md" : entry.slice(skillDir.length + 1)),
+          }))
+          .sort((left, right) => left.path.localeCompare(right.path));
+        return {
+          key: deriveCanonicalSkillKey(companyId, {
+            slug,
+            sourceType: "github",
+            sourceLocator: sourceUrl,
+            metadata,
+          }),
           slug,
-        ),
-      };
-      const inventory = filteredPaths
-        .filter((entry) => entry === relativeSkillPath || entry.startsWith(`${skillDir}/`))
-        .map((entry) => ({
-          path: entry === relativeSkillPath ? "SKILL.md" : entry.slice(skillDir.length + 1),
-          kind: classifyInventoryKind(entry === relativeSkillPath ? "SKILL.md" : entry.slice(skillDir.length + 1)),
-        }))
-        .sort((left, right) => left.path.localeCompare(right.path));
-      skills.push({
-        key: deriveCanonicalSkillKey(companyId, {
-          slug,
-          sourceType: "github",
+          name: asString(parsedMarkdown.frontmatter.name) ?? slug,
+          description: asString(parsedMarkdown.frontmatter.description),
+          markdown,
+          sourceType: "github" as const,
           sourceLocator: sourceUrl,
+          sourceRef: ref,
+          trustLevel: deriveTrustLevel(inventory),
+          compatibility: "compatible" as const,
+          fileInventory: inventory,
           metadata,
-        }),
-        slug,
-        name: asString(parsedMarkdown.frontmatter.name) ?? slug,
-        description: asString(parsedMarkdown.frontmatter.description),
-        markdown,
-        sourceType: "github",
-        sourceLocator: sourceUrl,
-        sourceRef: ref,
-        trustLevel: deriveTrustLevel(inventory),
-        compatibility: "compatible",
-        fileInventory: inventory,
-        metadata,
-      });
+        } satisfies ImportedSkill;
+      }));
+      for (const skill of batchResults) {
+        if (skill) skills.push(skill);
+      }
     }
     if (skills.length === 0) {
       throw unprocessable(
@@ -2454,6 +2462,125 @@ export function companySkillService(db: Db) {
     return skill;
   }
 
+  async function listCatalogSources(companyId: string): Promise<(SkillCatalogEntry & { installedCount: number })[]> {
+    const installed = await listFull(companyId);
+    return SKILL_CATALOG.map((entry) => {
+      const installedCount = installed.filter(
+        (s) => s.sourceLocator && s.sourceLocator.includes(entry.source.replace("https://github.com/", "").split("/").slice(0, 2).join("/")),
+      ).length;
+      return { ...entry, installedCount };
+    });
+  }
+
+  async function translateDescriptions(
+    companyId: string,
+    options: { skillIds?: string[] } = {},
+  ): Promise<{ translated: number; skipped: number; errors: number }> {
+    const openrouterKey = process.env.OPENROUTER_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    if (!openrouterKey && !openaiKey && !anthropicKey) {
+      throw unprocessable("Set OPENROUTER_API_KEY, OPENAI_API_KEY, or ANTHROPIC_API_KEY on the server to enable translation.");
+    }
+
+    const all = await listFull(companyId);
+    const targets = options.skillIds
+      ? all.filter((s) => options.skillIds!.includes(s.id))
+      : all;
+
+    const ptbrRe = /[áéíóúâêîôûãõçàèìòù]/i;
+    const toTranslate = targets.filter((s) => s.description && !ptbrRe.test(s.description));
+
+    let translated = 0;
+    let skipped = targets.length - toTranslate.length;
+    let errors = 0;
+
+    const prompt = (input: { id: string; description: string }[]) =>
+      `Translate the following skill descriptions to Brazilian Portuguese (pt-BR).
+Keep technical terms, file paths, command names, and proper nouns in English.
+Return ONLY a JSON array with the same ids, in this exact format:
+[{"id":"...","translated":"..."}]
+
+Input:
+${JSON.stringify(input)}`;
+
+    async function callLLM(input: { id: string; description: string }[]): Promise<string> {
+      if (openrouterKey) {
+        // OpenRouter — OpenAI-compatible API; defaults to gemini-flash for cost efficiency
+        const model = process.env.TRANSLATION_MODEL ?? "google/gemini-flash-1.5";
+        const resp = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${openrouterKey}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model,
+            max_tokens: 4096,
+            messages: [{ role: "user", content: prompt(input) }],
+          }),
+        });
+        if (!resp.ok) throw new Error(`OpenRouter ${resp.status}`);
+        const data = (await resp.json()) as { choices: { message: { content: string } }[] };
+        return data.choices[0]?.message?.content ?? "";
+      } else if (openaiKey) {
+        const resp = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${openaiKey}`, "content-type": "application/json" },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            max_tokens: 4096,
+            messages: [{ role: "user", content: prompt(input) }],
+          }),
+        });
+        if (!resp.ok) throw new Error(`OpenAI ${resp.status}`);
+        const data = (await resp.json()) as { choices: { message: { content: string } }[] };
+        return data.choices[0]?.message?.content ?? "";
+      } else {
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "x-api-key": anthropicKey!,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "claude-haiku-4-5-20251001",
+            max_tokens: 4096,
+            messages: [{ role: "user", content: prompt(input) }],
+          }),
+        });
+        if (!resp.ok) throw new Error(`Anthropic ${resp.status}`);
+        const data = (await resp.json()) as { content: { type: string; text: string }[] };
+        return data.content.find((c) => c.type === "text")?.text ?? "";
+      }
+    }
+
+    const BATCH = 50;
+    for (let i = 0; i < toTranslate.length; i += BATCH) {
+      const batch = toTranslate.slice(i, i + BATCH);
+      const input = batch.map((s) => ({ id: s.id, description: s.description! }));
+      try {
+        const text = await callLLM(input);
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) { errors += batch.length; continue; }
+        const results = JSON.parse(jsonMatch[0]) as { id: string; translated: string }[];
+        for (const r of results) {
+          if (!r.id || !r.translated) continue;
+          await db
+            .update(companySkills)
+            .set({ description: r.translated, updatedAt: new Date() })
+            .where(and(eq(companySkills.companyId, companyId), eq(companySkills.id, r.id)));
+          translated++;
+        }
+      } catch {
+        errors += batch.length;
+      }
+    }
+
+    return { translated, skipped, errors };
+  }
+
   return {
     list,
     listFull,
@@ -2474,5 +2601,7 @@ export function companySkillService(db: Db) {
     importPackageFiles,
     installUpdate,
     listRuntimeSkillEntries,
+    listCatalogSources,
+    translateDescriptions,
   };
 }

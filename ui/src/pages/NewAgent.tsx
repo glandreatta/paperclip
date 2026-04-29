@@ -6,7 +6,7 @@ import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { agentsApi } from "../api/agents";
 import { companySkillsApi } from "../api/companySkills";
 import { queryKeys } from "../lib/queryKeys";
-import { AGENT_ROLES } from "@paperclipai/shared";
+import { AGENT_ROLES, type AgentTemplateAgent } from "@paperclipai/shared";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -183,6 +183,44 @@ export function NewAgent() {
 
   const availableSkills = (companySkills ?? []).filter((skill) => !skill.key.startsWith("paperclipai/paperclip/"));
 
+  const { data: agentTemplates } = useQuery({
+    queryKey: ["agent-templates", selectedCompanyId],
+    queryFn: () => agentsApi.templates(selectedCompanyId!),
+    enabled: Boolean(selectedCompanyId),
+  });
+
+  const [templateOpen, setTemplateOpen] = useState(false);
+
+  const createFromTemplate = useMutation({
+    mutationFn: async (templateId: string) => {
+      const template = agentTemplates?.find((t) => t.id === templateId);
+      if (!template || !selectedCompanyId) return;
+      const skillKeys = (companySkills ?? [])
+        .filter((s) => template.agents.some((a: AgentTemplateAgent) => a.suggestedSkillSlugs.includes(s.slug)))
+        .map((s) => s.key);
+      for (const agent of template.agents) {
+        const agentSkillKeys = (companySkills ?? [])
+          .filter((s) => agent.suggestedSkillSlugs.includes(s.slug))
+          .map((s) => s.key);
+        await agentsApi.hire(selectedCompanyId, buildNewAgentHirePayload({
+          name: agent.name,
+          effectiveRole: agent.role,
+          title: agent.title,
+          reportsTo: null,
+          selectedSkillKeys: agentSkillKeys,
+          configValues: defaultCreateValues,
+          adapterConfig: {},
+        }));
+      }
+      return { count: template.agents.length, name: template.name };
+    },
+    onSuccess: (result) => {
+      if (!result) return;
+      queryClient.invalidateQueries({ queryKey: queryKeys.agents.list(selectedCompanyId!) });
+      navigate("/agents");
+    },
+  });
+
   function toggleSkill(key: string, checked: boolean) {
     setSelectedSkillKeys((prev) => {
       if (checked) {
@@ -200,6 +238,42 @@ export function NewAgent() {
           Advanced agent configuration
         </p>
       </div>
+
+      {agentTemplates && agentTemplates.length > 0 && (
+        <div className="rounded-md border border-border px-4 py-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Usar template de equipe</p>
+              <p className="text-xs text-muted-foreground">Cria múltiplos agentes pré-configurados de uma vez.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setTemplateOpen((v) => !v)}>
+              {templateOpen ? "Fechar" : "Ver templates"}
+            </Button>
+          </div>
+          {templateOpen && (
+            <div className="space-y-2">
+              {agentTemplates.map((template) => (
+                <div key={template.id} className="flex items-start justify-between gap-3 rounded border border-border px-3 py-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{template.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{template.description}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {template.agents.map((a: AgentTemplateAgent) => a.name).join(" · ")}
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    disabled={createFromTemplate.isPending}
+                    onClick={() => createFromTemplate.mutate(template.id)}
+                  >
+                    Criar equipe
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="border border-border">
         {/* Name */}

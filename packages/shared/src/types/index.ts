@@ -60,6 +60,7 @@ export type {
   CompanySkillCreateRequest,
   CompanySkillFileDetail,
   CompanySkillFileUpdateRequest,
+  SkillCatalogSource,
 } from "./company-skill.js";
 export type {
   AgentSkillSyncMode,
@@ -74,6 +75,8 @@ export type {
   AgentAccessState,
   AgentChainOfCommandEntry,
   AgentDetail,
+  AgentTemplate,
+  AgentTemplateAgent,
   AgentPermissions,
   AgentInstructionsBundleMode,
   AgentInstructionsFileSummary,

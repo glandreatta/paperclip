@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "@/lib/router";
-import { X } from "lucide-react";
+import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import {
   useToastActions,
   useToastState,
@@ -9,19 +9,62 @@ import {
 } from "../context/ToastContext";
 import { cn } from "../lib/utils";
 
-const toneClasses: Record<ToastTone, string> = {
-  info: "border-sky-300 bg-sky-50 text-sky-900 dark:border-sky-500/25 dark:bg-sky-950/60 dark:text-sky-100",
-  success: "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-500/25 dark:bg-emerald-950/60 dark:text-emerald-100",
-  warn: "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-500/25 dark:bg-amber-950/60 dark:text-amber-100",
-  error: "border-red-300 bg-red-50 text-red-900 dark:border-red-500/30 dark:bg-red-950/60 dark:text-red-100",
+const toneStyles: Record<ToastTone, { container: string; icon: string; progress: string }> = {
+  info: {
+    container:
+      "border-sky-200 bg-white text-slate-900 dark:border-sky-500/20 dark:bg-slate-900 dark:text-slate-100",
+    icon: "text-sky-500 dark:text-sky-400",
+    progress: "bg-sky-500 dark:bg-sky-400",
+  },
+  success: {
+    container:
+      "border-emerald-200 bg-white text-slate-900 dark:border-emerald-500/20 dark:bg-slate-900 dark:text-slate-100",
+    icon: "text-emerald-500 dark:text-emerald-400",
+    progress: "bg-emerald-500 dark:bg-emerald-400",
+  },
+  warn: {
+    container:
+      "border-amber-200 bg-white text-slate-900 dark:border-amber-500/20 dark:bg-slate-900 dark:text-slate-100",
+    icon: "text-amber-500 dark:text-amber-400",
+    progress: "bg-amber-500 dark:bg-amber-400",
+  },
+  error: {
+    container:
+      "border-red-200 bg-white text-slate-900 dark:border-red-500/20 dark:bg-slate-900 dark:text-slate-100",
+    icon: "text-red-500 dark:text-red-400",
+    progress: "bg-red-500 dark:bg-red-400",
+  },
 };
 
-const toneDotClasses: Record<ToastTone, string> = {
-  info: "bg-sky-500 dark:bg-sky-400",
-  success: "bg-emerald-500 dark:bg-emerald-400",
-  warn: "bg-amber-500 dark:bg-amber-400",
-  error: "bg-red-500 dark:bg-red-400",
+const ToneIcon = ({ tone }: { tone: ToastTone }) => {
+  const cls = cn("h-[18px] w-[18px] shrink-0 mt-px", toneStyles[tone].icon);
+  if (tone === "success") return <CheckCircle2 className={cls} />;
+  if (tone === "error") return <AlertCircle className={cls} />;
+  if (tone === "warn") return <AlertTriangle className={cls} />;
+  return <Info className={cls} />;
 };
+
+function ProgressBar({ ttlMs, tone }: { ttlMs: number; tone: ToastTone }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.transition = "none";
+    el.style.width = "100%";
+    const raf = requestAnimationFrame(() => {
+      el.style.transition = `width ${ttlMs}ms linear`;
+      el.style.width = "0%";
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [ttlMs]);
+
+  return (
+    <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden rounded-b-lg">
+      <div ref={ref} className={cn("h-full opacity-40", toneStyles[tone].progress)} style={{ width: "100%" }} />
+    </div>
+  );
+}
 
 function AnimatedToast({
   toast,
@@ -40,19 +83,17 @@ function AnimatedToast({
   return (
     <li
       className={cn(
-        "pointer-events-auto rounded-sm border shadow-lg backdrop-blur-xl transition-[transform,opacity] duration-200 ease-out",
-        visible
-          ? "translate-y-0 opacity-100"
-          : "translate-y-3 opacity-0",
-        toneClasses[toast.tone],
+        "pointer-events-auto relative overflow-hidden rounded-lg border shadow-lg ring-1 ring-black/5 backdrop-blur-xl transition-[transform,opacity] duration-200 ease-out dark:ring-white/5",
+        visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0",
+        toneStyles[toast.tone].container,
       )}
     >
-      <div className="flex items-start gap-3 px-3 py-2.5">
-        <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", toneDotClasses[toast.tone])} />
+      <div className="flex items-start gap-3 px-3.5 py-3">
+        <ToneIcon tone={toast.tone} />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold leading-5">{toast.title}</p>
           {toast.body && (
-            <p className="mt-1 text-xs leading-4 opacity-70">
+            <p className="mt-0.5 text-xs leading-4 text-slate-500 dark:text-slate-400">
               {toast.body}
             </p>
           )}
@@ -60,9 +101,9 @@ function AnimatedToast({
             <Link
               to={toast.action.href}
               onClick={() => onDismiss(toast.id)}
-              className="mt-2 inline-flex text-xs font-medium underline underline-offset-4 hover:opacity-90"
+              className="mt-1.5 inline-flex text-xs font-medium underline underline-offset-4 hover:opacity-75"
             >
-              {toast.action.label}
+              {toast.action.label} →
             </Link>
           )}
         </div>
@@ -70,11 +111,12 @@ function AnimatedToast({
           type="button"
           aria-label="Dismiss notification"
           onClick={() => onDismiss(toast.id)}
-          className="mt-0.5 shrink-0 rounded p-1 opacity-50 hover:bg-black/10 hover:opacity-100 dark:hover:bg-white/10"
+          className="mt-0.5 shrink-0 rounded p-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-800 dark:hover:text-slate-300"
         >
           <X className="h-3.5 w-3.5" />
         </button>
       </div>
+      <ProgressBar ttlMs={toast.ttlMs} tone={toast.tone} />
     </li>
   );
 }
@@ -89,17 +131,11 @@ export function ToastViewport() {
     <aside
       aria-live="polite"
       aria-atomic="false"
-      className="pointer-events-none fixed bottom-3 left-3 z-[120] w-full max-w-sm px-1"
+      className="pointer-events-none fixed bottom-4 right-4 z-[120] flex w-full max-w-[360px] flex-col gap-2"
     >
-      <ol className="flex w-full flex-col-reverse gap-2">
-        {toasts.map((toast) => (
-          <AnimatedToast
-            key={toast.id}
-            toast={toast}
-            onDismiss={dismissToast}
-          />
-        ))}
-      </ol>
+      {toasts.map((toast) => (
+        <AnimatedToast key={toast.id} toast={toast} onDismiss={dismissToast} />
+      ))}
     </aside>
   );
 }

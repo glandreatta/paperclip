@@ -10,6 +10,7 @@ import {
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useToast } from "../context/ToastContext";
+import { useConfirm } from "../context/ConfirmContext";
 import { companiesApi } from "../api/companies";
 import { accessApi } from "../api/access";
 import { assetsApi } from "../api/assets";
@@ -178,6 +179,7 @@ export function CompanySettings() {
   } = useCompany();
   const { setBreadcrumbs } = useBreadcrumbs();
   const { pushToast } = useToast();
+  const confirm = useConfirm();
   const queryClient = useQueryClient();
   // General settings local state
   const [companyName, setCompanyName] = useState("");
@@ -1265,11 +1267,14 @@ export function CompanySettings() {
                 archiveMutation.isPending ||
                 selectedCompany.status === "archived"
               }
-              onClick={() => {
+              onClick={async () => {
                 if (!selectedCompanyId) return;
-                const confirmed = window.confirm(
-                  `Archive company "${selectedCompany.name}"? It will be hidden from the sidebar.`
-                );
+                const confirmed = await confirm({
+                  title: `Archive "${selectedCompany.name}"?`,
+                  description: "It will be hidden from the sidebar.",
+                  confirmLabel: "Archive",
+                  variant: "destructive",
+                });
                 if (!confirmed) return;
                 const nextCompanyId =
                   companies.find(

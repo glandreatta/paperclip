@@ -1,5 +1,6 @@
 import type {
   AgentAdapterType,
+  AgentIconName,
   PauseReason,
   AgentRole,
   AgentStatus,
@@ -127,4 +128,22 @@ export interface AdapterEnvironmentTestResult {
   status: AdapterEnvironmentTestStatus;
   checks: AdapterEnvironmentCheck[];
   testedAt: string;
+}
+
+export interface AgentTemplateAgent {
+  name: string;
+  title: string;
+  role: AgentRole;
+  icon: AgentIconName;
+  capabilities: string;
+  suggestedSkillSlugs: string[];
+}
+
+export interface AgentTemplate {
+  id: string;
+  name: string;
+  description: string;
+  recommendedSkillSource: string | null;
+  agents: AgentTemplateAgent[];
+  tags: string[];
 }
