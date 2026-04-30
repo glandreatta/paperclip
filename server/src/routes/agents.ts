@@ -1526,11 +1526,16 @@ export function agentRoutes(
       desiredSkillAssignment.adapterConfig,
       { strictMode: strictSecretsMode },
     );
-    await assertAdapterConfigConstraints(
-      companyId,
-      hireInput.adapterType,
-      normalizedAdapterConfig,
-    );
+    {
+      const modelStr = typeof normalizedAdapterConfig.model === "string" ? normalizedAdapterConfig.model.trim() : "";
+      if (modelStr) {
+        await assertAdapterConfigConstraints(
+          companyId,
+          hireInput.adapterType,
+          normalizedAdapterConfig,
+        );
+      }
+    }
     const normalizedHireInput = {
       ...hireInput,
       adapterConfig: normalizedAdapterConfig,
@@ -1716,11 +1721,16 @@ export function agentRoutes(
       desiredSkillAssignment.adapterConfig,
       { strictMode: strictSecretsMode },
     );
-    await assertAdapterConfigConstraints(
-      companyId,
-      createInput.adapterType,
-      normalizedAdapterConfig,
-    );
+    {
+      const modelStr = typeof normalizedAdapterConfig.model === "string" ? normalizedAdapterConfig.model.trim() : "";
+      if (modelStr) {
+        await assertAdapterConfigConstraints(
+          companyId,
+          createInput.adapterType,
+          normalizedAdapterConfig,
+        );
+      }
+    }
     await assertAgentEnvironmentSelection(companyId, createInput.adapterType, createInput.defaultEnvironmentId);
     await assertAgentDefaultEnvironmentSelection(companyId, createInput.defaultEnvironmentId, {
       allowedDrivers: allowedEnvironmentDriversForAgent(createInput.adapterType),
@@ -2176,11 +2186,15 @@ export function agentRoutes(
     }
     if (touchesAdapterConfiguration && requestedAdapterType === "opencode_local") {
       const effectiveAdapterConfig = asRecord(patchData.adapterConfig) ?? {};
-      await assertAdapterConfigConstraints(
-        existing.companyId,
-        requestedAdapterType,
-        effectiveAdapterConfig,
-      );
+      // Only validate when model is set — allow saving partial/incomplete config
+      const modelStr = typeof effectiveAdapterConfig.model === "string" ? effectiveAdapterConfig.model.trim() : "";
+      if (modelStr) {
+        await assertAdapterConfigConstraints(
+          existing.companyId,
+          requestedAdapterType,
+          effectiveAdapterConfig,
+        );
+      }
     }
     if (touchesAdapterConfiguration || Object.prototype.hasOwnProperty.call(patchData, "defaultEnvironmentId")) {
       await assertAgentDefaultEnvironmentSelection(
