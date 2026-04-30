@@ -617,10 +617,24 @@ async function resolveGitHubPinnedRef(parsed: ReturnType<typeof parseGitHubSourc
     };
   }
 
-  const trackingRef = parsed.explicitRef
-    ? parsed.ref
-    : await resolveGitHubDefaultBranch(parsed.owner, parsed.repo, apiBase);
-  const pinnedRef = await resolveGitHubCommitSha(parsed.owner, parsed.repo, trackingRef, apiBase);
+  let trackingRef: string;
+  try {
+    trackingRef = parsed.explicitRef
+      ? parsed.ref
+      : await resolveGitHubDefaultBranch(parsed.owner, parsed.repo, apiBase);
+  } catch {
+    trackingRef = parsed.ref;
+  }
+
+  let pinnedRef: string;
+  try {
+    pinnedRef = await resolveGitHubCommitSha(parsed.owner, parsed.repo, trackingRef, apiBase);
+  } catch {
+    // Fall back to branch name when unauthenticated rate limit is hit.
+    // GITHUB_TOKEN can be set to avoid this.
+    pinnedRef = trackingRef;
+  }
+
   return { pinnedRef, trackingRef };
 }
 
