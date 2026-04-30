@@ -195,22 +195,23 @@ export function NewAgent() {
     mutationFn: async (templateId: string) => {
       const template = agentTemplates?.find((t) => t.id === templateId);
       if (!template || !selectedCompanyId) return;
-      const skillKeys = (companySkills ?? [])
-        .filter((s) => template.agents.some((a: AgentTemplateAgent) => a.suggestedSkillSlugs.includes(s.slug)))
-        .map((s) => s.key);
       for (const agent of template.agents) {
         const agentSkillKeys = (companySkills ?? [])
           .filter((s) => agent.suggestedSkillSlugs.includes(s.slug))
           .map((s) => s.key);
-        await agentsApi.hire(selectedCompanyId, buildNewAgentHirePayload({
-          name: agent.name,
-          effectiveRole: agent.role,
-          title: agent.title,
-          reportsTo: null,
-          selectedSkillKeys: agentSkillKeys,
-          configValues: defaultCreateValues,
-          adapterConfig: {},
-        }));
+        await agentsApi.hire(selectedCompanyId, {
+          ...buildNewAgentHirePayload({
+            name: agent.name,
+            effectiveRole: agent.role,
+            title: agent.title,
+            reportsTo: null,
+            selectedSkillKeys: agentSkillKeys,
+            configValues: defaultCreateValues,
+            adapterConfig: {},
+          }),
+          ...(agent.capabilities ? { capabilities: agent.capabilities } : {}),
+          ...(agent.icon ? { icon: agent.icon } : {}),
+        });
       }
       return { count: template.agents.length, name: template.name };
     },
