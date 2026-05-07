@@ -74,6 +74,7 @@ import {
   ArrowLeft,
   HelpCircle,
   FolderOpen,
+  Search,
 } from "lucide-react";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -2498,6 +2499,7 @@ function AgentSkillsTab({
   const [skillDraft, setSkillDraft] = useState<string[]>([]);
   const [lastSavedSkills, setLastSavedSkills] = useState<string[]>([]);
   const [unmanagedOpen, setUnmanagedOpen] = useState(false);
+  const [skillFilter, setSkillFilter] = useState("");
   const lastSavedSkillsRef = useRef<string[]>([]);
   const hasHydratedSkillSnapshotRef = useRef(false);
   const skipNextSkillAutosaveRef = useRef(true);
@@ -2600,6 +2602,16 @@ function AgentSkillsTab({
         })),
     [adapterEntryByKey, companySkills],
   );
+  const filteredOptionalSkillRows = useMemo(() => {
+    const q = skillFilter.trim().toLowerCase();
+    if (!q) return optionalSkillRows;
+    return optionalSkillRows.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.key.toLowerCase().includes(q) ||
+        (s.description ?? "").toLowerCase().includes(q),
+    );
+  }, [optionalSkillRows, skillFilter]);
   const requiredSkillRows = useMemo<SkillRow[]>(
     () =>
       (skillSnapshot?.entries ?? [])
@@ -2685,6 +2697,19 @@ function AgentSkillsTab({
           </div>
         ) : null}
       </div>
+
+      {optionalSkillRows.length > 3 && (
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <input
+            type="text"
+            placeholder={`Filter ${optionalSkillRows.length} skills...`}
+            value={skillFilter}
+            onChange={(e) => setSkillFilter(e.target.value)}
+            className="w-full rounded border border-border bg-card pl-8 pr-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          />
+        </div>
+      )}
 
       {skillSnapshot?.warnings.length ? (
         <div className="space-y-1 rounded-xl border border-amber-300/60 bg-amber-50/60 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-950/20 dark:text-amber-200">
@@ -2810,7 +2835,13 @@ function AgentSkillsTab({
               <>
                 {optionalSkillRows.length > 0 && (
                   <section className="border-y border-border">
-                    {optionalSkillRows.map(renderSkillRow)}
+                    {filteredOptionalSkillRows.length === 0 ? (
+                      <div className="px-3 py-4 text-sm text-muted-foreground">
+                        No skills match &ldquo;{skillFilter}&rdquo;.
+                      </div>
+                    ) : (
+                      filteredOptionalSkillRows.map(renderSkillRow)
+                    )}
                   </section>
                 )}
 

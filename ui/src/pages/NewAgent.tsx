@@ -14,7 +14,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Shield } from "lucide-react";
+import { Shield, Search } from "lucide-react";
 import { cn, agentUrl } from "../lib/utils";
 import { roleLabels } from "../components/agent-config-primitives";
 import { AgentConfigForm, type CreateConfigValues } from "../components/AgentConfigForm";
@@ -66,6 +66,7 @@ export function NewAgent() {
   const [selectedSkillKeys, setSelectedSkillKeys] = useState<string[]>([]);
   const [roleOpen, setRoleOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [skillFilter, setSkillFilter] = useState("");
 
   const { data: agents } = useQuery({
     queryKey: queryKeys.agents.list(selectedCompanyId!),
@@ -182,6 +183,16 @@ export function NewAgent() {
   }
 
   const availableSkills = (companySkills ?? []).filter((skill) => !skill.key.startsWith("paperclipai/paperclip/"));
+  const filteredSkills = (() => {
+    const q = skillFilter.trim().toLowerCase();
+    if (!q) return availableSkills;
+    return availableSkills.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.key.toLowerCase().includes(q) ||
+        (s.description ?? "").toLowerCase().includes(q),
+    );
+  })();
 
   const { data: agentTemplates } = useQuery({
     queryKey: ["agent-templates", selectedCompanyId],
@@ -359,25 +370,39 @@ export function NewAgent() {
               </p>
             ) : (
               <div className="space-y-3">
-                {availableSkills.map((skill) => {
-                  const inputId = `skill-${skill.id}`;
-                  const checked = selectedSkillKeys.includes(skill.key);
-                  return (
-                    <div key={skill.id} className="flex items-start gap-3">
-                      <Checkbox
-                        id={inputId}
-                        checked={checked}
-                        onCheckedChange={(next) => toggleSkill(skill.key, next === true)}
-                      />
-                      <label htmlFor={inputId} className="grid gap-1 leading-none">
-                        <span className="text-sm font-medium">{skill.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {skill.description ?? skill.key}
-                        </span>
-                      </label>
-                    </div>
-                  );
-                })}
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder={`Filter ${availableSkills.length} skills...`}
+                    value={skillFilter}
+                    onChange={(e) => setSkillFilter(e.target.value)}
+                    className="w-full rounded border border-border bg-card pl-8 pr-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+                {filteredSkills.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">No skills match &ldquo;{skillFilter}&rdquo;.</p>
+                ) : (
+                  filteredSkills.map((skill) => {
+                    const inputId = `skill-${skill.id}`;
+                    const checked = selectedSkillKeys.includes(skill.key);
+                    return (
+                      <div key={skill.id} className="flex items-start gap-3">
+                        <Checkbox
+                          id={inputId}
+                          checked={checked}
+                          onCheckedChange={(next) => toggleSkill(skill.key, next === true)}
+                        />
+                        <label htmlFor={inputId} className="grid gap-1 leading-none">
+                          <span className="text-sm font-medium">{skill.name}</span>
+                          <span className="text-xs text-muted-foreground">
+                            {skill.description ?? skill.key}
+                          </span>
+                        </label>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             )}
           </div>
