@@ -67,6 +67,7 @@ export function NewAgent() {
   const [roleOpen, setRoleOpen] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [skillFilter, setSkillFilter] = useState("");
+  const [instructions, setInstructions] = useState("");
 
   const { data: agents } = useQuery({
     queryKey: queryKeys.agents.list(selectedCompanyId!),
@@ -176,6 +177,7 @@ export function NewAgent() {
         title,
         reportsTo,
         selectedSkillKeys,
+        instructions,
         configValues,
         adapterConfig: buildAdapterConfig(),
       }),
@@ -355,6 +357,22 @@ export function NewAgent() {
           onChange={(patch) => setConfigValues((prev) => ({ ...prev, ...patch }))}
           adapterModels={adapterModels}
         />
+
+        <div className="border-t border-border px-4 py-4">
+          <div className="space-y-2">
+            <h2 className="text-sm font-medium">Instructions</h2>
+            <p className="text-xs text-muted-foreground">
+              Agent instructions (AGENTS.md). Defines the agent&apos;s role, behavior and guidelines.
+            </p>
+            <textarea
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              placeholder={`# ${name || "Agent"}\n\nYou are a helpful agent. Your role is to...`}
+              rows={6}
+              className="w-full rounded border border-border bg-card px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-y font-mono"
+            />
+          </div>
+        </div>
 
         <div className="border-t border-border px-4 py-4">
           <div className="space-y-3">

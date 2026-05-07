@@ -7,6 +7,7 @@ export function buildNewAgentHirePayload(input: {
   title?: string;
   reportsTo?: string | null;
   selectedSkillKeys?: string[];
+  instructions?: string;
   configValues: CreateConfigValues;
   adapterConfig: Record<string, unknown>;
 }) {
@@ -16,6 +17,7 @@ export function buildNewAgentHirePayload(input: {
     title,
     reportsTo,
     selectedSkillKeys = [],
+    instructions,
     configValues,
     adapterConfig,
   } = input;
@@ -24,12 +26,15 @@ export function buildNewAgentHirePayload(input: {
   delete sanitizedAdapterConfig.promptTemplate;
   delete sanitizedAdapterConfig.bootstrapPromptTemplate;
 
+  const instructionsContent = instructions?.trim();
+
   return {
     name: name.trim(),
     role: effectiveRole,
     ...(title?.trim() ? { title: title.trim() } : {}),
     ...(reportsTo ? { reportsTo } : {}),
     ...(selectedSkillKeys.length > 0 ? { desiredSkills: selectedSkillKeys } : {}),
+    ...(instructionsContent ? { instructionsBundle: { files: { "AGENTS.md": instructionsContent } } } : {}),
     adapterType: configValues.adapterType,
     defaultEnvironmentId: configValues.defaultEnvironmentId ?? null,
     adapterConfig: sanitizedAdapterConfig,
