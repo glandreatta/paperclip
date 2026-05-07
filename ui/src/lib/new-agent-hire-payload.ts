@@ -20,6 +20,10 @@ export function buildNewAgentHirePayload(input: {
     adapterConfig,
   } = input;
 
+  const sanitizedAdapterConfig = { ...adapterConfig };
+  delete sanitizedAdapterConfig.promptTemplate;
+  delete sanitizedAdapterConfig.bootstrapPromptTemplate;
+
   return {
     name: name.trim(),
     role: effectiveRole,
@@ -28,7 +32,7 @@ export function buildNewAgentHirePayload(input: {
     ...(selectedSkillKeys.length > 0 ? { desiredSkills: selectedSkillKeys } : {}),
     adapterType: configValues.adapterType,
     defaultEnvironmentId: configValues.defaultEnvironmentId ?? null,
-    adapterConfig,
+    adapterConfig: sanitizedAdapterConfig,
     runtimeConfig: buildNewAgentRuntimeConfig({
       heartbeatEnabled: configValues.heartbeatEnabled,
       intervalSec: configValues.intervalSec,
