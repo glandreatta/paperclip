@@ -736,14 +736,9 @@ export function agentRoutes(
 
   function assertNoNewAgentLegacyPromptTemplate(adapterType: string, adapterConfig: Record<string, unknown>) {
     if (!adapterSupportsInstructionsBundle(adapterType)) return;
-    if (
-      Object.prototype.hasOwnProperty.call(adapterConfig, "promptTemplate")
-      || Object.prototype.hasOwnProperty.call(adapterConfig, "bootstrapPromptTemplate")
-    ) {
-      throw unprocessable(
-        "New agents must use instructionsBundle/AGENTS.md instead of adapterConfig.promptTemplate or bootstrapPromptTemplate",
-      );
-    }
+    // Strip legacy fields silently — instructionsBundle/AGENTS.md takes precedence for new agents.
+    delete adapterConfig.promptTemplate;
+    delete adapterConfig.bootstrapPromptTemplate;
   }
 
   async function assertCanManageInstructionsPath(req: Request, targetAgent: { id: string; companyId: string }) {

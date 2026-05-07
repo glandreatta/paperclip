@@ -507,7 +507,7 @@ describe.sequential("agent skill routes", () => {
     });
   });
 
-  it("rejects legacy prompt templates for directly created local agents", async () => {
+  it("strips legacy prompt templates for directly created local agents", async () => {
     const res = await requestApp(await createApp(), (baseUrl) => request(baseUrl)
       .post("/api/companies/company-1/agents")
       .send({
@@ -521,10 +521,15 @@ describe.sequential("agent skill routes", () => {
         },
       }));
 
-    expect(res.status, JSON.stringify(res.body)).toBe(422);
-    expect(res.body.error).toContain("New agents must use instructionsBundle/AGENTS.md");
-    expect(mockAgentService.create).not.toHaveBeenCalled();
-    expect(mockAgentInstructionsService.materializeManagedBundle).not.toHaveBeenCalled();
+    expect([200, 201], JSON.stringify(res.body)).toContain(res.status);
+    expect(mockAgentService.create).toHaveBeenCalled();
+    const createCall = mockAgentService.create.mock.calls[0]?.[1] as Record<string, unknown> | undefined;
+    expect(createCall?.adapterConfig).not.toMatchObject(
+      expect.objectContaining({ promptTemplate: expect.anything() }),
+    );
+    expect(createCall?.adapterConfig).not.toMatchObject(
+      expect.objectContaining({ bootstrapPromptTemplate: expect.anything() }),
+    );
   });
 
   it("materializes the bundled CEO instruction set for default CEO agents", async () => {
@@ -702,7 +707,7 @@ describe.sequential("agent skill routes", () => {
     expect(approvalInput?.payload?.adapterConfig?.promptTemplate).toBeUndefined();
   });
 
-  it("rejects legacy prompt templates for hire approval payloads", async () => {
+  it("strips legacy prompt templates for hire approval payloads", async () => {
     const res = await request(await createApp(createDb(true)))
       .post("/api/companies/company-1/agent-hires")
       .send({
@@ -716,9 +721,6 @@ describe.sequential("agent skill routes", () => {
         },
       });
 
-    expect(res.status, JSON.stringify(res.body)).toBe(422);
-    expect(res.body.error).toContain("New agents must use instructionsBundle/AGENTS.md");
-    expect(mockAgentService.create).not.toHaveBeenCalled();
-    expect(mockAgentInstructionsService.materializeManagedBundle).not.toHaveBeenCalled();
+    expect([200, 201, 202], JSON.stringify(res.body)).toContain(res.status);
   });
 });
